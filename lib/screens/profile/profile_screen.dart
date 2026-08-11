@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/mock_data.dart';
@@ -19,7 +21,10 @@ class ProfileScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     CircleIconButton(
@@ -55,13 +60,14 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.person, size: 48, color: Colors.white),
+                    child: const Icon(
+                      Icons.person,
+                      size: 48,
+                      color: Colors.white,
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    MockData.userName,
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
+                  const _SignedInUserName(),
                   const SizedBox(height: 4),
                   const PillTag(label: 'Master Collector'),
                   const SizedBox(height: 24),
@@ -71,41 +77,94 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SliverToBoxAdapter(
-            child: SectionHeader(title: 'Recent Badges', actionLabel: 'View all'),
+            child: SectionHeader(
+              title: 'Recent Badges',
+              actionLabel: 'View all',
+            ),
           ),
           SliverToBoxAdapter(
             child: SizedBox(
               height: 110,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 children: const [
-                  _BadgeItem(icon: Icons.auto_awesome, label: 'First Scan', color: AppColors.gold),
-                  _BadgeItem(icon: Icons.history_edu, label: 'Historian', color: AppColors.purple),
-                  _BadgeItem(icon: Icons.verified_user, label: 'Eagle Eye', color: AppColors.success),
-                  _BadgeItem(icon: Icons.groups, label: 'Club Member', color: AppColors.navy),
+                  _BadgeItem(
+                    icon: Icons.auto_awesome,
+                    label: 'First Scan',
+                    color: AppColors.gold,
+                  ),
+                  _BadgeItem(
+                    icon: Icons.history_edu,
+                    label: 'Historian',
+                    color: AppColors.purple,
+                  ),
+                  _BadgeItem(
+                    icon: Icons.verified_user,
+                    label: 'Eagle Eye',
+                    color: AppColors.success,
+                  ),
+                  _BadgeItem(
+                    icon: Icons.groups,
+                    label: 'Club Member',
+                    color: AppColors.navy,
+                  ),
                 ],
               ),
             ),
           ),
           const SliverToBoxAdapter(
-            child: SectionHeader(title: 'Story Bookmarks', actionLabel: 'See all'),
+            child: SectionHeader(
+              title: 'Story Bookmarks',
+              actionLabel: 'See all',
+            ),
           ),
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final video = MockData.storyVideos[index];
-                return Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: _BookmarkCard(video: video),
-                );
-              },
-              childCount: MockData.storyVideos.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final video = MockData.storyVideos[index];
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: _BookmarkCard(video: video),
+              );
+            }, childCount: MockData.storyVideos.length),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
+    );
+  }
+}
+
+class _SignedInUserName extends StatelessWidget {
+  const _SignedInUserName();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return Text(
+        MockData.userName,
+        style: Theme.of(context).textTheme.headlineMedium,
+      );
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final firestoreName = snapshot.data?.data()?['name'] as String?;
+        final name = firestoreName?.trim().isNotEmpty == true
+            ? firestoreName!
+            : (user.displayName?.trim().isNotEmpty == true
+                  ? user.displayName!
+                  : 'Collector');
+        return Text(name, style: Theme.of(context).textTheme.headlineMedium);
+      },
     );
   }
 }
@@ -131,7 +190,11 @@ class _ProfileStats extends StatelessWidget {
       child: const Row(
         children: [
           _StatItem(value: '42', label: 'coins owned'),
-          _StatItem(value: '\$3,240', label: 'collection value', highlight: true),
+          _StatItem(
+            value: '\$3,240',
+            label: 'collection value',
+            highlight: true,
+          ),
           _StatItem(value: '12', label: 'badges'),
         ],
       ),
@@ -202,7 +265,10 @@ class _BadgeItem extends StatelessWidget {
             child: Icon(icon, color: color, size: 28),
           ),
           const SizedBox(height: 8),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -232,7 +298,11 @@ class _BookmarkCard extends StatelessWidget {
               gradient: LinearGradient(colors: video.gradient),
             ),
             child: const Center(
-              child: Icon(Icons.play_circle_fill, color: Colors.white, size: 24),
+              child: Icon(
+                Icons.play_circle_fill,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -242,7 +312,10 @@ class _BookmarkCard extends StatelessWidget {
               children: [
                 Text(
                   video.title,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

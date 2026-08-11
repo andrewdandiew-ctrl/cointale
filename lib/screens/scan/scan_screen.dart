@@ -24,245 +24,362 @@ class ScanScreen extends StatefulWidget {
 }
 
 class _ScanScreenState extends State<ScanScreen> {
-  bool _showResult = false;
   bool _isIdentifying = false;
-  XFile? _pickedImage;
+  final _pageController = PageController();
+  final _measurementsFormKey = GlobalKey<FormState>();
+  final _weightController = TextEditingController();
+  final _diameterController = TextEditingController();
 
-  Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final image = await picker.pickImage(source: ImageSource.gallery);
+  XFile? _frontImage;
+  XFile? _backImage;
+  XFile? _edgeImage;
+  var _step = 0;
+  var _showResult = false;
 
-    if (image != null) {
-      setState(() {
-        _pickedImage = image;
-        _isIdentifying = true;
-        _showResult = false;
-      });
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _weightController.dispose();
+    _diameterController.dispose();
+    super.dispose();
+  }
 
-      // Simulate identification process
-      await Future.delayed(const Duration(seconds: 2));
+  Future<void> _capturePhoto(ImageSource source) async {
+    final image = await ImagePicker().pickImage(source: source);
+    if (image == null || !mounted) return;
 
+    setState(() {
+      if (_step == 0) {
+        _frontImage = image;
+      } else if (_step == 1) {
+        _backImage = image;
+      } else if (_step == 2) {
+        _edgeImage = image;
+      }
+    });
+  }
+
+  XFile? get _currentImage => switch (_step) {
+    0 => _frontImage,
+    1 => _backImage,
+    2 => _edgeImage,
+    _ => null,
+  };
+
+  Future<void> _next() async {
+    if (_step < 3 && _currentImage == null) return;
+    if (_step == 3) {
+      if (!_measurementsFormKey.currentState!.validate()) return;
+      setState(() => _isIdentifying = true);
+      await Future<void>.delayed(const Duration(seconds: 2));
       if (mounted) {
         setState(() {
           _isIdentifying = false;
           _showResult = true;
         });
       }
+      return;
     }
-  }
-
-  void _onCapture() async {
-    setState(() {
-      _pickedImage = null;
-      _isIdentifying = true;
-      _showResult = false;
-    });
-
-    // Simulate identification process
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (mounted) {
-      setState(() {
-        _isIdentifying = false;
-        _showResult = true;
-      });
-    }
+    await _pageController.nextPage(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E14),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          _CameraBackground(),
-          SafeArea(
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      CircleIconButton(
-                        icon: Icons.close,
-                        onPressed: () => Navigator.of(context).pop(),
-                        backgroundColor: Colors.black45,
-                        iconColor: Colors.white,
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: _isIdentifying ? AppColors.gold : Colors.white24,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              _isIdentifying ? 'Identifying...' : 'Ready to scan',
-                              style: const TextStyle(color: Colors.white, fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Spacer(),
-                      const CircleIconButton(
-                        icon: Icons.flash_off_outlined,
-                        backgroundColor: Colors.black45,
-                        iconColor: Colors.white,
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                SizedBox(
-                  width: 260,
-                  height: 260,
-                  child: CustomPaint(
-                    painter: _ScanCirclePainter(isIdentifying: _isIdentifying),
-                    child: Center(
-                      child: _pickedImage == null
-                          ? Container(
-                              width: 180,
-                              height: 180,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: RadialGradient(
-                                  colors: [
-                                    Colors.grey.shade300,
-                                    Colors.grey.shade500,
-                                    Colors.grey.shade700,
-                                  ],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.gold.withValues(alpha: 0.3),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                              child: Icon(
-                                Icons.monetization_on,
-                                size: 80,
-                                color: Colors.grey.shade200,
-                              ),
-                            )
-                          : Container(
-                              width: 180,
-                              height: 180,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                image: DecorationImage(
-                                  image: FileImage(File(_pickedImage!.path)),
-                                  fit: BoxFit.cover,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.gold.withValues(alpha: 0.3),
-                                    blurRadius: 30,
-                                    spreadRadius: 5,
-                                  ),
-                                ],
-                              ),
-                            ),
-                    ),
-                  ),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(top: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black54,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.info_outline, size: 16, color: AppColors.gold),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Align the coin inside the circle',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(flex: 2),
-                if (_showResult) _ResultCard(
-                  onViewStory: () => widget.onViewStory(context),
-                  onVerify: () => widget.onVerify(context),
-                  imagePath: _pickedImage?.path,
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(40, 16, 40, 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      CircleIconButton(
-                        icon: Icons.photo_library_outlined,
-                        backgroundColor: Colors.white24,
-                        iconColor: Colors.white,
-                        size: 48,
-                        onPressed: _pickImage,
-                      ),
-                      GestureDetector(
-                        onTap: _onCapture,
-                        child: Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 4),
-                            color: Colors.white24,
-                          ),
-                          child: Center(
-                            child: _isIdentifying
-                                ? const SizedBox(
-                                    width: 40,
-                                    height: 40,
-                                    child: CircularProgressIndicator(
-                                      color: Colors.white,
-                                      strokeWidth: 3,
-                                    ),
-                                  )
-                                : const CircleAvatar(
-                                    radius: 28,
-                                    backgroundColor: Colors.white,
-                                  ),
-                          ),
-                        ),
-                      ),
-                      CircleIconButton(
-                        icon: Icons.flip_camera_ios_outlined,
-                        backgroundColor: Colors.white24,
-                        iconColor: Colors.white,
-                        size: 48,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      body: _showResult ? _buildResult() : _buildCaptureFlow(),
     );
   }
+
+  Widget _buildCaptureFlow() => Stack(
+    fit: StackFit.expand,
+    children: [
+      _CameraBackground(),
+      SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  CircleIconButton(
+                    icon: Icons.close,
+                    onPressed: () => Navigator.of(context).pop(),
+                    backgroundColor: Colors.black45,
+                    iconColor: Colors.white,
+                  ),
+                  const Spacer(),
+                  Text(
+                    'Coin verification · ${_step + 1} of 4',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  const SizedBox(width: 40),
+                ],
+              ),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (value) => setState(() => _step = value),
+                children: [
+                  _PhotoStep(
+                    title: 'Photograph the front',
+                    instruction:
+                        'Place the coin flat and keep the full front face in frame.',
+                    image: _frontImage,
+                    onCamera: () => _capturePhoto(ImageSource.camera),
+                    onGallery: () => _capturePhoto(ImageSource.gallery),
+                  ),
+                  _PhotoStep(
+                    title: 'Photograph the back',
+                    instruction:
+                        'Turn the coin over and take a sharp, well-lit photo.',
+                    image: _backImage,
+                    onCamera: () => _capturePhoto(ImageSource.camera),
+                    onGallery: () => _capturePhoto(ImageSource.gallery),
+                  ),
+                  _PhotoStep(
+                    title: 'Photograph the edge / reed',
+                    instruction:
+                        'Stand the coin on its side so the edge detail is visible.',
+                    image: _edgeImage,
+                    onCamera: () => _capturePhoto(ImageSource.camera),
+                    onGallery: () => _capturePhoto(ImageSource.gallery),
+                  ),
+                  _MeasurementsStep(
+                    formKey: _measurementsFormKey,
+                    weightController: _weightController,
+                    diameterController: _diameterController,
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isIdentifying ? null : _next,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: _isIdentifying
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(_step == 3 ? 'Analyze coin' : 'Next'),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Widget _buildResult() => SafeArea(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: CircleIconButton(
+              icon: Icons.close,
+              onPressed: () => Navigator.of(context).pop(),
+              backgroundColor: Colors.white24,
+              iconColor: Colors.white,
+            ),
+          ),
+          const Spacer(),
+          _ResultCard(
+            onViewStory: () => widget.onViewStory(context),
+            onVerify: () => widget.onVerify(context),
+            imagePath: _frontImage?.path,
+          ),
+          const Spacer(),
+        ],
+      ),
+    ),
+  );
+}
+
+class _PhotoStep extends StatelessWidget {
+  const _PhotoStep({
+    required this.title,
+    required this.instruction,
+    required this.image,
+    required this.onCamera,
+    required this.onGallery,
+  });
+  final String title;
+  final String instruction;
+  final XFile? image;
+  final VoidCallback onCamera;
+  final VoidCallback onGallery;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Column(
+      children: [
+        const Spacer(),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          instruction,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: .75),
+            fontSize: 16,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 28),
+        Container(
+          width: 240,
+          height: 240,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.gold, width: 2),
+            color: Colors.white.withValues(alpha: .08),
+          ),
+          child: image == null
+              ? const Icon(
+                  Icons.camera_alt_outlined,
+                  size: 64,
+                  color: AppColors.gold,
+                )
+              : Image.file(File(image!.path), fit: BoxFit.cover),
+        ),
+        const SizedBox(height: 24),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onGallery,
+                icon: const Icon(Icons.photo_library_outlined),
+                label: const Text('Choose photo'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onCamera,
+                icon: const Icon(Icons.camera_alt),
+                label: const Text('Take photo'),
+              ),
+            ),
+          ],
+        ),
+        const Spacer(),
+      ],
+    ),
+  );
+}
+
+class _MeasurementsStep extends StatelessWidget {
+  const _MeasurementsStep({
+    required this.formKey,
+    required this.weightController,
+    required this.diameterController,
+  });
+  final GlobalKey<FormState> formKey;
+  final TextEditingController weightController;
+  final TextEditingController diameterController;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(24),
+    child: Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Spacer(),
+          const Text(
+            'Add measurements',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Use a scale and calipers for the most accurate authenticity check.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: .75),
+              fontSize: 16,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 28),
+          _MeasurementField(
+            controller: weightController,
+            label: 'Weight',
+            unit: 'g',
+          ),
+          const SizedBox(height: 16),
+          _MeasurementField(
+            controller: diameterController,
+            label: 'Diameter',
+            unit: 'mm',
+          ),
+          const Spacer(),
+        ],
+      ),
+    ),
+  );
+}
+
+class _MeasurementField extends StatelessWidget {
+  const _MeasurementField({
+    required this.controller,
+    required this.label,
+    required this.unit,
+  });
+  final TextEditingController controller;
+  final String label;
+  final String unit;
+  @override
+  Widget build(BuildContext context) => TextFormField(
+    controller: controller,
+    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+    style: const TextStyle(color: Colors.white),
+    validator: (value) => double.tryParse(value ?? '') == null
+        ? 'Enter a valid $label in $unit.'
+        : null,
+    decoration: InputDecoration(
+      labelText: label,
+      suffixText: unit,
+      labelStyle: TextStyle(color: Colors.white.withValues(alpha: .7)),
+      suffixStyle: const TextStyle(color: AppColors.gold),
+      filled: true,
+      fillColor: Colors.white.withValues(alpha: .08),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: Colors.white.withValues(alpha: .2)),
+      ),
+    ),
+  );
 }
 
 class _CameraBackground extends StatelessWidget {
@@ -276,10 +393,7 @@ class _CameraBackground extends StatelessWidget {
           colors: [Color(0xFF1A2030), Color(0xFF0A0E14)],
         ),
       ),
-      child: CustomPaint(
-        painter: _GridPainter(),
-        size: Size.infinite,
-      ),
+      child: CustomPaint(painter: _GridPainter(), size: Size.infinite),
     );
   }
 }
@@ -297,36 +411,6 @@ class _GridPainter extends CustomPainter {
     for (var y = 0.0; y < size.height; y += spacing) {
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
     }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _ScanCirclePainter extends CustomPainter {
-  _ScanCirclePainter({this.isIdentifying = false});
-
-  final bool isIdentifying;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 4;
-
-    final circlePaint = Paint()
-      ..color = isIdentifying ? AppColors.success : AppColors.gold
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    canvas.drawCircle(center, radius, circlePaint);
-
-    final linePaint = Paint()
-      ..color = (isIdentifying ? AppColors.success : AppColors.gold).withValues(alpha: 0.6)
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(center.dx - radius * 0.6, center.dy + radius * 0.3),
-      Offset(center.dx + radius * 0.6, center.dy + radius * 0.3),
-      linePaint,
-    );
   }
 
   @override

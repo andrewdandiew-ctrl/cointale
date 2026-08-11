@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "862512504967",
+    "project_id": "cointale-7874c",
+    "storage_bucket": "cointale-7874c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:862512504967:android:6ed8c1c059f3ac13e99822",
+        "android_client_info": {
+          "package_name": "com.example.cointale_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhetDEZmduEHYPZFA5skngw5-Vx4WpxVA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

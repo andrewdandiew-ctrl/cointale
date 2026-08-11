@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../data/mock_data.dart';
@@ -27,10 +29,7 @@ class DiscoverScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Good morning, ${MockData.userName}',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
+                        const _UserGreeting(),
                         const SizedBox(height: 4),
                         Text(
                           'Discover',
@@ -40,7 +39,9 @@ class DiscoverScreen extends StatelessWidget {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pushNamed(ProfileScreen.routeName),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).pushNamed(ProfileScreen.routeName),
                     child: Container(
                       width: 44,
                       height: 44,
@@ -89,7 +90,7 @@ class DiscoverScreen extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
           const SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(horizontal: 20),
               child: _StatsBar(),
             ),
           ),
@@ -108,7 +109,7 @@ class DiscoverScreen extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 itemCount: MockData.eraCards.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   return _EraCardWidget(era: MockData.eraCards[index]);
                 },
@@ -118,6 +119,35 @@ class DiscoverScreen extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
+    );
+  }
+}
+
+class _UserGreeting extends StatelessWidget {
+  const _UserGreeting();
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final textStyle = Theme.of(context).textTheme.bodyMedium;
+    if (user == null) {
+      return Text('Good morning, ${MockData.userName}', style: textStyle);
+    }
+
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        final firestoreName = snapshot.data?.data()?['name'] as String?;
+        final name = firestoreName?.trim().isNotEmpty == true
+            ? firestoreName!
+            : (user.displayName?.trim().isNotEmpty == true
+                  ? user.displayName!
+                  : 'Collector');
+        return Text('Good morning, $name', style: textStyle);
+      },
     );
   }
 }
@@ -158,11 +188,18 @@ class _ScanCtaCard extends StatelessWidget {
                     onTap: onScan,
                     borderRadius: BorderRadius.circular(24),
                     child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.camera_alt, size: 18, color: AppColors.navyDark),
+                          Icon(
+                            Icons.camera_alt,
+                            size: 18,
+                            color: AppColors.navyDark,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Scan a coin',
@@ -247,7 +284,10 @@ class _StoryOfDayCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.3),
                       borderRadius: BorderRadius.circular(8),
@@ -258,7 +298,11 @@ class _StoryOfDayCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  const Icon(Icons.play_circle_fill, color: Colors.white, size: 48),
+                  const Icon(
+                    Icons.play_circle_fill,
+                    color: Colors.white,
+                    size: 48,
+                  ),
                   const Spacer(),
                   const Text(
                     'The Denarius That Paid Rome\'s Legions',
