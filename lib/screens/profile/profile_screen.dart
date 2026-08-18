@@ -6,6 +6,8 @@ import '../../data/mock_data.dart';
 import '../../models/models.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/shared_widgets.dart';
+import '../auth/sign_in_screen.dart';
+import '../welcome_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -32,7 +34,28 @@ class ProfileScreen extends StatelessWidget {
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const Spacer(),
-                    const CircleIconButton(icon: Icons.settings_outlined),
+                    if (FirebaseAuth.instance.currentUser == null)
+                      TextButton.icon(
+                        onPressed: () => Navigator.of(
+                          context,
+                        ).pushNamed(SignInScreen.routeName),
+                        icon: const Icon(Icons.login, size: 18),
+                        label: const Text('Sign in or sign up'),
+                      )
+                    else
+                      TextButton.icon(
+                        onPressed: () async {
+                          await FirebaseAuth.instance.signOut();
+                          if (context.mounted) {
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              WelcomeScreen.routeName,
+                              (_) => false,
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('Sign out'),
+                      ),
                   ],
                 ),
               ),
@@ -145,10 +168,7 @@ class _SignedInUserName extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return Text(
-        MockData.userName,
-        style: Theme.of(context).textTheme.headlineMedium,
-      );
+      return Text('user', style: Theme.of(context).textTheme.headlineMedium);
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(

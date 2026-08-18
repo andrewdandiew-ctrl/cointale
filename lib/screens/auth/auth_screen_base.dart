@@ -150,6 +150,11 @@ class AuthTextField extends StatelessWidget {
 
 String firebaseErrorMessage(Object error) {
   final text = error.toString();
+  if (text.contains('network-request-failed') ||
+      text.contains('network') ||
+      text.contains('timed out')) {
+    return 'We could not reach the sign-in service. Check your connection and try again.';
+  }
   if (text.contains('invalid-credential') || text.contains('wrong-password')) {
     return 'The email or password is incorrect.';
   }

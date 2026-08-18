@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -71,12 +74,24 @@ class _ScanScreenState extends State<ScanScreen> {
     if (_step == 3) {
       if (!_measurementsFormKey.currentState!.validate()) return;
       setState(() => _isIdentifying = true);
-      await Future<void>.delayed(const Duration(seconds: 2));
-      if (mounted) {
-        setState(() {
-          _isIdentifying = false;
-          _showResult = true;
-        });
+      try {
+        await _saveCoinScan();
+        if (mounted) {
+          setState(() {
+            _isIdentifying = false;
+            _showResult = true;
+          });
+        }
+      } on FirebaseException catch (error) {
+        if (mounted) {
+          setState(() => _isIdentifying = false);
+          _showError(_saveErrorMessage(error));
+        }
+      } catch (_) {
+        if (mounted) {
+          setState(() => _isIdentifying = false);
+          _showError('We could not save this coin scan. Please try again.');
+        }
       }
       return;
     }
@@ -84,6 +99,60 @@ class _ScanScreenState extends State<ScanScreen> {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOut,
     );
+  }
+
+  Future<void> _saveCoinScan() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw StateError('A signed-in user is required.');
+    }
+
+    final scanRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('coinScans')
+        .doc();
+
+    final photos = <String, XFile>{
+      'front': _frontImage!,
+      'back': _backImage!,
+      'edge': _edgeImage!,
+    };
+    final storagePaths = <String, String>{};
+    final photoUrls = <String, String>{};
+
+    for (final entry in photos.entries) {
+      final photoRef = FirebaseStorage.instance.ref(
+        'users/${user.uid}/coinScans/${scanRef.id}/${entry.key}.jpg',
+      );
+      await photoRef.putData(
+        await entry.value.readAsBytes(),
+        SettableMetadata(contentType: entry.value.mimeType ?? 'image/jpeg'),
+      );
+      storagePaths[entry.key] = photoRef.fullPath;
+      photoUrls[entry.key] = await photoRef.getDownloadURL();
+    }
+
+    await scanRef.set({
+      'weightGrams': double.parse(_weightController.text.trim()),
+      'diameterMm': double.parse(_diameterController.text.trim()),
+      'photoCaptureCompleted': true,
+      'photoStoragePaths': storagePaths,
+      'photoUrls': photoUrls,
+      'status': 'pendingAnalysis',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  void _showError(String message) => ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(SnackBar(content: Text(message)));
+
+  String _saveErrorMessage(FirebaseException error) {
+    if (error.code == 'permission-denied') {
+      return 'Saving was denied. Check your Firebase security rules.';
+    }
+    return 'We could not save this coin scan. Please check your connection and try again.';
   }
 
   @override

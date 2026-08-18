@@ -131,7 +131,7 @@ class _UserGreeting extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     final textStyle = Theme.of(context).textTheme.bodyMedium;
     if (user == null) {
-      return Text('Good morning, ${MockData.userName}', style: textStyle);
+      return Text('Good morning, user', style: textStyle);
     }
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
